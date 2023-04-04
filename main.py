@@ -2,14 +2,14 @@ import numpy as np
 import sklearn.svm
 from matplotlib import pyplot as plt
 from sklearn.metrics import accuracy_score
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, RepeatedStratifiedKFold
 from sklearn import metrics
-import pandas as pd
 from sklearn import datasets
+import pandas as pd
 
 
 class SVM:
-    def __init__(self, C=1, gamma=0.00001):
+    def __init__(self, C=1, gamma=0.0001):
         self.kernel = lambda x, y: np.exp(-gamma * np.sum((y - x[:, np.newaxis]) ** 2, axis=-1))
         self.C = C
 
@@ -51,59 +51,49 @@ class SVM:
         return np.where(np.sign(decision) >= 0, 1, 0)
 
 
-# d_set = np.genfromtxt("audit.csv", delimiter=",", skip_header=1)
-#
-# X = d_set[:, :-2]
-# y = d_set[:, -1].astype(int)
-#
-# df = pd.DataFrame(d_set, columns=['Sector_score','LOCATION_ID','PARA_A','Score_A','Risk_A','PARA_B','Score_B','Risk_B','TOTAL','numbers',
-#                                   'Score_B','Risk_C','Money_Value','Score_MV','Risk_D','District_Loss','PROB','RiSk_E','History','Prob',
-#                                   'Risk_F','Score','Inherent_Risk','CONTROL_RISK','Detection_Risk','Audit_Risk','Risk'])
-#
-# df['Risk'] = df['Risk'].apply(int)
-# df_2 = df.copy()
-# df_2 = df_2.dropna()
-# df_2.to_csv('ready_csv.csv', sep=',', index=False)
-# d_set = np.genfromtxt("ready_csv.csv", delimiter=",", skip_header=1)
-#
-# X = d_set[:, :-2]
-# y = d_set[:, -1].astype(int)
-
 cancer = datasets.load_breast_cancer()
 X = cancer.data
 y = cancer.target
-# X, y = datasets.make_moons(n_samples=300, random_state=1)
 
-X_train, X_test, y_train, y_test = train_test_split(
-    X,
-    y,
-    test_size=0.3,
-    random_state=259
-    )
+rskf = RepeatedStratifiedKFold(n_splits=2, n_repeats=5, random_state=1410)
+rskf.get_n_splits(X, y)
+
+mean = []
+mean_2 = []
 
 clf = SVM()
-clf.fit(X_train, y_train)
-y_pred = clf.predict(X_test)
-accuracy = accuracy_score(y_test, y_pred)
-print(y_pred)
-print("Accuracy (scratch): %.3f" % accuracy)
+clf_sklearn = sklearn.svm.SVC(kernel='rbf', gamma=0.0001)
+for i, (train_index, test_index) in enumerate(rskf.split(X, y)):
+    X_train, X_test = X[train_index], X[test_index]
+    y_train, y_test = y[train_index], y[test_index]
 
-clf_sklearn = sklearn.svm.SVC(kernel='rbf', gamma=0.00001)
-clf_sklearn.fit(X_train, y_train)
-y_pred2 = clf_sklearn.predict(X_test)
-accuracy = accuracy_score(y_test, y_pred2)
-print("Accuracy (Scikit-learn): %.3f" % accuracy)
-print(y_pred2)
-fig, (ax, ax2) = plt.subplots(2, 2)
-fig.tight_layout(pad=2.5)
-ax[0].scatter(X_test[:, 0], X_test[:, 1], c=y_test, cmap='bwr')
+    clf.fit(X_train, y_train)
+    y_pred = clf.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    mean.append(accuracy)
 
-ax[1].scatter(X_test[:, 0], X_test[:, 1], c=y_pred, cmap='bwr')
-ax[1].set_title('Prediction score: %.3f' % metrics.accuracy_score(y_test, y_pred))
+    clf_sklearn.fit(X_train, y_train)
+    y_pred2 = clf_sklearn.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred2)
+    mean_2.append(accuracy)
+    print(10-i)
+    if i == 9:
+        print()
+        print('\x1b[38;2;255;0;0m\x1b[48;2;244;244;0m' + '\/\/\/ Nikt się tego nie spodziewał \/\/\/' + '\x1b[0m')
+        fig, (ax, ax2) = plt.subplots(2, 2)
+        fig.tight_layout(pad=2.5)
+        ax[0].scatter(X_test[:, 0], X_test[:, 1], c=y_test, cmap='bwr')
 
-ax2[0].scatter(X_test[:, 0], X_test[:, 1], c=y_test, cmap='bwr')
+        ax[1].scatter(X_test[:, 0], X_test[:, 1], c=y_pred, cmap='bwr')
+        ax[1].set_title('Avg prediction score: %.3f' % np.mean(mean))
 
-ax2[1].scatter(X_test[:, 0], X_test[:, 1], c=y_pred2, cmap='bwr')
-ax2[1].set_title('Prediction score wzorca: %.3f' % metrics.accuracy_score(y_test, y_pred2))
+        ax2[0].scatter(X_test[:, 0], X_test[:, 1], c=y_test, cmap='bwr')
 
+        ax2[1].scatter(X_test[:, 0], X_test[:, 1], c=y_pred2, cmap='bwr')
+        ax2[1].set_title('Avg prediction score SKlearn: %.3f' % np.mean(mean_2))
+
+        plt.savefig('plot.png')
+
+print("Accuracy (scratch): %.3f" % np.mean(mean))
+print("Accuracy (Scikit-learn): %.3f" % np.mean(mean_2))
 plt.show()
