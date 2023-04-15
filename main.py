@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split, RepeatedStratifiedKFold
 from sklearn import metrics
 from sklearn import datasets
 import pandas as pd
-
+from tabulate import tabulate
 
 class SVM:
     def __init__(self, C=1, gamma=0.0001):
@@ -51,9 +51,15 @@ class SVM:
         return np.where(np.sign(decision) >= 0, 1, 0)
 
 
-cancer = datasets.load_breast_cancer()
-X = cancer.data
-y = cancer.target
+
+d_set = pd.read_csv("wdbc.csv", header=None)
+d_set.replace({'M': 0, 'B': 1}, inplace=True)
+
+X = d_set.drop([0, 1], axis=1).astype(float)
+y = d_set.get(1)
+
+X = X.to_numpy()
+y = y.to_numpy()
 
 rskf = RepeatedStratifiedKFold(n_splits=2, n_repeats=5, random_state=1410)
 rskf.get_n_splits(X, y)
