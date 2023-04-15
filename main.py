@@ -1,3 +1,4 @@
+import numpy
 import numpy as np
 import sklearn.svm
 from matplotlib import pyplot as plt
@@ -51,7 +52,6 @@ class SVM:
         return np.where(np.sign(decision) >= 0, 1, 0)
 
 
-
 d_set = pd.read_csv("wdbc.csv", header=None)
 d_set.replace({'M': 0, 'B': 1}, inplace=True)
 
@@ -64,42 +64,59 @@ y = y.to_numpy()
 rskf = RepeatedStratifiedKFold(n_splits=2, n_repeats=5, random_state=1410)
 rskf.get_n_splits(X, y)
 
-mean = []
-mean_2 = []
+# mean = []
+# mean_2 = []
+clfs = {
+    'SVM (scratch)': SVM(),
+    'SVM (rbf sklearn)': sklearn.svm.SVC(kernel='rbf', gamma=0.0001),
+    'SVM (linear sklearn)': sklearn.svm.SVC(kernel='linear'),
+    'SVM (sigmoid sklearn)': sklearn.svm.SVC(kernel='sigmoid'),
+    'Logistic Regression': sklearn.linear_model.LogisticRegression(max_iter=5000),
+}
+acc_scores = np.zeros(shape=[len(clfs), rskf.get_n_splits()])
+f1_scores = np.zeros(shape=[len(clfs), rskf.get_n_splits()])
 
-clf = SVM()
-clf_sklearn = sklearn.svm.SVC(kernel='rbf', gamma=0.0001)
-for i, (train_index, test_index) in enumerate(rskf.split(X, y)):
-    X_train, X_test = X[train_index], X[test_index]
-    y_train, y_test = y[train_index], y[test_index]
+for fold_id, (train, test) in enumerate(rskf.split(X, y)):
+    for clf_id, (clf_name, clf) in enumerate(clfs.items()):
 
-    clf.fit(X_train, y_train)
-    y_pred = clf.predict(X_test)
-    accuracy = accuracy_score(y_test, y_pred)
-    mean.append(accuracy)
+        clf.fit(X[train], y[train])
+        y_pred = clf.predict(X[test])
+        acc_scores[clf_id, fold_id] = accuracy_score(y[test], y_pred)
+        f1_scores[clf_id, fold_id] = sklearn.metrics.f1_score(y[test], y_pred)
 
-    clf_sklearn.fit(X_train, y_train)
-    y_pred2 = clf_sklearn.predict(X_test)
-    accuracy = accuracy_score(y_test, y_pred2)
-    mean_2.append(accuracy)
-    print(10-i)
-    if i == 9:
-        print()
-        print('\x1b[38;2;255;0;0m\x1b[48;2;244;244;0m' + '\/\/\/ Nikt się tego nie spodziewał \/\/\/' + '\x1b[0m')
-        fig, (ax, ax2) = plt.subplots(2, 2)
-        fig.tight_layout(pad=2.5)
-        ax[0].scatter(X_test[:, 0], X_test[:, 1], c=y_test, cmap='bwr')
+mean_scores = np.mean(acc_scores, axis=1)
+std_scores = np.std(acc_scores, axis=1)
+f1_scores = np.mean(f1_scores, axis=1)
 
-        ax[1].scatter(X_test[:, 0], X_test[:, 1], c=y_pred, cmap='bwr')
-        ax[1].set_title('Avg prediction score: %.3f' % np.mean(mean))
+# for clf_id, clf_name in enumerate(clfs):
+#     print(list(clfs.keys())[clf_id]+":", "\t\tMean accuracy score: %.3f" %mean_scores[clf_id], "\tStd accuracy: %.3f" %std_scores[clf_id], "\t\tF1 score: %.3f" %f1_scores[clf_id])
 
-        ax2[0].scatter(X_test[:, 0], X_test[:, 1], c=y_test, cmap='bwr')
+output_table = [["Classificator", "Mean accuracy", "Standardard Deviation", "Mean F1 score"],
+                ["SVM (scratch)", mean_scores[0], std_scores[0], f1_scores[0]],
+                ["SVM (rbf sklearn)", mean_scores[1], std_scores[1], f1_scores[1]],
+                ["SVM (linear sklearn)", mean_scores[2], std_scores[2], f1_scores[2]],
+                ["SVM (sigmoid sklearn)", mean_scores[3], std_scores[3], f1_scores[3]],
+                ["Logistic Regression", mean_scores[4], std_scores[4], f1_scores[4]]
+                ]
 
-        ax2[1].scatter(X_test[:, 0], X_test[:, 1], c=y_pred2, cmap='bwr')
-        ax2[1].set_title('Avg prediction score SKlearn: %.3f' % np.mean(mean_2))
+print(tabulate(output_table, headers="firstrow", tablefmt="fancy_grid", floatfmt=(".3f")))
 
-        plt.savefig('plot.png')
+    # print(10-i)
+    # if i == 9:
+    #     print()
+    #     print('\x1b[38;2;255;0;0m\x1b[48;2;244;244;0m' + '\/\/\/ Nikt się tego nie spodziewał \/\/\/' + '\x1b[0m')
+    #     fig, (ax, ax2) = plt.subplots(2, 2)
+    #     fig.tight_layout(pad=2.5)
+    #     ax[0].scatter(X_test[:, 0], X_test[:, 1], c=y_test, cmap='bwr')
+    #
+    #     ax[1].scatter(X_test[:, 0], X_test[:, 1], c=y_pred, cmap='bwr')
+    #     ax[1].set_title('Avg prediction score: %.3f' % np.mean(mean))
+    #
+    #     ax2[0].scatter(X_test[:, 0], X_test[:, 1], c=y_test, cmap='bwr')
+    #
+    #     ax2[1].scatter(X_test[:, 0], X_test[:, 1], c=y_pred2, cmap='bwr')
+    #     ax2[1].set_title('Avg prediction score SKlearn: %.3f' % np.mean(mean_2))
+    #
+    #     plt.savefig('plot.png')
 
-print("Accuracy (scratch): %.3f" % np.mean(mean))
-print("Accuracy (Scikit-learn): %.3f" % np.mean(mean_2))
-plt.show()
+
