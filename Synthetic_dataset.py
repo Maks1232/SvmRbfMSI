@@ -100,10 +100,10 @@ output_table = [["Classificator", "Mean accuracy", "Standard Deviation", "Mean F
                 ["SVM (sigmoid sklearn)", mean_scores[3], std_scores[3], f1_scores[3]],
                 ["Logistic Regression", mean_scores[4], std_scores[4], f1_scores[4]]
                 ]
-print(tabulate(output_table, headers="firstrow", tablefmt="fancy_grid", floatfmt=".3f"))
+print(tabulate(output_table, headers="firstrow", floatfmt=".3f"))
 
-with open('Wyniki/Synthetic_table.txt', 'w') as f:
-    f.write(tabulate(output_table, headers="firstrow", tablefmt="fancy_grid", floatfmt=".3f"))
-
+with open('Synthetic_table.txt', 'w') as f:
+    f.write(tabulate(output_table, headers="firstrow", floatfmt=".3f"))
+plt.savefig("Synthetic_dataset.png")
 plt.show()
-plt.savefig("Wyniki/Synthetic_dataset.png")
+

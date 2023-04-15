@@ -104,10 +104,11 @@ output_table = [["Classificator", "Mean accuracy", "Standard Deviation", "Mean F
                 ["Logistic Regression", mean_scores[4], std_scores[4], f1_scores[4]]
                 ]
 
-print(tabulate(output_table, headers="firstrow", tablefmt="fancy_grid", floatfmt=".3f"))
+print(tabulate(output_table, headers="firstrow", floatfmt=".3f"))
 
-with open('Wyniki/Real_table.txt', 'w') as f:
-    f.write(tabulate(output_table, headers="firstrow", tablefmt="fancy_grid", floatfmt=".3f"))
+with open('Wyniki/Real_table_gamma_scale.txt', 'w') as f:
+    f.write(tabulate(output_table, headers="firstrow", floatfmt=".3f"))
 
+plt.savefig("Wyniki/Real_table_gamma_scale.png")
 plt.show()
-plt.savefig("Real_dataset.png")
+
