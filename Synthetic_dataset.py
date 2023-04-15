@@ -1,23 +1,28 @@
-import numpy
 import numpy as np
 import sklearn.svm
 from matplotlib import pyplot as plt
+from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.metrics import accuracy_score
-from sklearn.model_selection import train_test_split, RepeatedStratifiedKFold
-from sklearn import metrics
-from sklearn import datasets
-import pandas as pd
+from sklearn.model_selection import RepeatedStratifiedKFold
 from tabulate import tabulate
+from sklearn import datasets
 
-class SVM:
+
+def gamma_scale(X):
+    return 1 / (X.shape[1] * X.var())
+
+
+class SVM(BaseEstimator, ClassifierMixin):
+
     def __init__(self, C=1, gamma=0.0001):
         self.kernel = lambda x, y: np.exp(-gamma * np.sum((y - x[:, np.newaxis]) ** 2, axis=-1))
         self.C = C
 
     def fit(self, X, y):
+
         self.X = X
-        self.y = y * 2 - 1     # sprowadzenie etykiet z wartości 0,1 na wartości 1, -1
-        self.lambdas = np.zeros_like(self.y, dtype=float)   # uzupelnienie macierzy na wzor wektora etykiet
+        self.y = y * 2 - 1  # sprowadzenie etykiet z wartości 0,1 na wartości 1, -1
+        self.lambdas = np.zeros_like(self.y, dtype=float)  # uzupelnienie macierzy na wzor wektora etykiet
         # self.K - macierz jądrowa, która reprezentuje podobieństwo między każdą parą przykładów treningowych
         self.K = self.kernel(self.X, self.X) * self.y[:, np.newaxis] * self.y
 
@@ -52,23 +57,14 @@ class SVM:
         return np.where(np.sign(decision) >= 0, 1, 0)
 
 
-d_set = pd.read_csv("wdbc.csv", header=None)
-d_set.replace({'M': 0, 'B': 1}, inplace=True)
-
-X = d_set.drop([0, 1], axis=1).astype(float)
-y = d_set.get(1)
-
-X = X.to_numpy()
-y = y.to_numpy()
+X, y = datasets.make_circles(n_samples=300, random_state=1410)
 
 rskf = RepeatedStratifiedKFold(n_splits=2, n_repeats=5, random_state=1410)
 rskf.get_n_splits(X, y)
 
-# mean = []
-# mean_2 = []
 clfs = {
-    'SVM (scratch)': SVM(),
-    'SVM (rbf sklearn)': sklearn.svm.SVC(kernel='rbf', gamma=0.0001),
+    'SVM (scratch)': SVM(gamma=gamma_scale(X)),
+    'SVM (rbf sklearn)': sklearn.svm.SVC(kernel='rbf'),
     'SVM (linear sklearn)': sklearn.svm.SVC(kernel='linear'),
     'SVM (sigmoid sklearn)': sklearn.svm.SVC(kernel='sigmoid'),
     'Logistic Regression': sklearn.linear_model.LogisticRegression(max_iter=5000),
@@ -77,7 +73,7 @@ acc_scores = np.zeros(shape=[len(clfs), rskf.get_n_splits()])
 f1_scores = np.zeros(shape=[len(clfs), rskf.get_n_splits()])
 
 fig, axs = plt.subplots(5, 2, figsize=(18, 18))
-fig.suptitle("Real dataset binary classification", fontsize=30)
+fig.suptitle("Synthetic dataset binary classification", fontsize=30)
 fig.tight_layout(pad=5)
 
 for fold_id, (train, test) in enumerate(rskf.split(X, y)):
@@ -97,21 +93,17 @@ mean_scores = np.mean(acc_scores, axis=1)
 std_scores = np.std(acc_scores, axis=1)
 f1_scores = np.mean(f1_scores, axis=1)
 
-# for clf_id, clf_name in enumerate(clfs):
-#     print(list(clfs.keys())[clf_id]+":", "\t\tMean accuracy score: %.3f" %mean_scores[clf_id], "\tStd accuracy: %.3f" %std_scores[clf_id], "\t\tF1 score: %.3f" %f1_scores[clf_id])
-
-output_table = [["Classificator", "Mean accuracy", "Standardard Deviation", "Mean F1 score"],
+output_table = [["Classificator", "Mean accuracy", "Standard Deviation", "Mean F1 score"],
                 ["SVM (scratch)", mean_scores[0], std_scores[0], f1_scores[0]],
                 ["SVM (rbf sklearn)", mean_scores[1], std_scores[1], f1_scores[1]],
                 ["SVM (linear sklearn)", mean_scores[2], std_scores[2], f1_scores[2]],
                 ["SVM (sigmoid sklearn)", mean_scores[3], std_scores[3], f1_scores[3]],
                 ["Logistic Regression", mean_scores[4], std_scores[4], f1_scores[4]]
                 ]
-
 print(tabulate(output_table, headers="firstrow", tablefmt="fancy_grid", floatfmt=".3f"))
 
-with open('Wyniki/Real_table.txt', 'w') as f:
+with open('Wyniki/Synthetic_table.txt', 'w') as f:
     f.write(tabulate(output_table, headers="firstrow", tablefmt="fancy_grid", floatfmt=".3f"))
 
 plt.show()
-plt.savefig("Real_dataset.png")
+plt.savefig("Wyniki/Synthetic_dataset.png")
