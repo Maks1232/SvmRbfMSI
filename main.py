@@ -1,16 +1,17 @@
-import numpy
 import numpy as np
 import sklearn.svm
 from matplotlib import pyplot as plt
 from sklearn.metrics import accuracy_score
-from sklearn.model_selection import train_test_split, RepeatedStratifiedKFold
-from sklearn import metrics
-from sklearn import datasets
+from sklearn.model_selection import RepeatedStratifiedKFold
 import pandas as pd
 from tabulate import tabulate
 
+
+def gamma_scale(X):
+    return 1 / (X.shape[1] * X.var())
+
 class SVM:
-    def __init__(self, C=1, gamma=0.0001):
+    def __init__(self, C=1, gamma=None):
         self.kernel = lambda x, y: np.exp(-gamma * np.sum((y - x[:, np.newaxis]) ** 2, axis=-1))
         self.C = C
 
@@ -64,13 +65,11 @@ y = y.to_numpy()
 rskf = RepeatedStratifiedKFold(n_splits=2, n_repeats=5, random_state=1410)
 rskf.get_n_splits(X, y)
 
-# mean = []
-# mean_2 = []
 clfs = {
-    'SVM (scratch)': SVM(),
-    'SVM (rbf sklearn)': sklearn.svm.SVC(kernel='rbf', gamma=0.0001),
+    'SVM (scratch)': SVM(gamma=gamma_scale(X)),
+    'SVM (rbf sklearn)': sklearn.svm.SVC(kernel='rbf', gamma='scale'),
     'SVM (linear sklearn)': sklearn.svm.SVC(kernel='linear'),
-    'SVM (sigmoid sklearn)': sklearn.svm.SVC(kernel='sigmoid'),
+    'SVM (sigmoid sklearn)': sklearn.svm.SVC(kernel='sigmoid', gamma='scale'),
     'Logistic Regression': sklearn.linear_model.LogisticRegression(max_iter=5000),
 }
 acc_scores = np.zeros(shape=[len(clfs), rskf.get_n_splits()])
@@ -97,10 +96,7 @@ mean_scores = np.mean(acc_scores, axis=1)
 std_scores = np.std(acc_scores, axis=1)
 f1_scores = np.mean(f1_scores, axis=1)
 
-# for clf_id, clf_name in enumerate(clfs):
-#     print(list(clfs.keys())[clf_id]+":", "\t\tMean accuracy score: %.3f" %mean_scores[clf_id], "\tStd accuracy: %.3f" %std_scores[clf_id], "\t\tF1 score: %.3f" %f1_scores[clf_id])
-
-output_table = [["Classificator", "Mean accuracy", "Standardard Deviation", "Mean F1 score"],
+output_table = [["Classificator", "Mean accuracy", "Standard Deviation", "Mean F1 score"],
                 ["SVM (scratch)", mean_scores[0], std_scores[0], f1_scores[0]],
                 ["SVM (rbf sklearn)", mean_scores[1], std_scores[1], f1_scores[1]],
                 ["SVM (linear sklearn)", mean_scores[2], std_scores[2], f1_scores[2]],
