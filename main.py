@@ -5,10 +5,12 @@ from sklearn.metrics import accuracy_score
 from sklearn.model_selection import RepeatedStratifiedKFold
 import pandas as pd
 from tabulate import tabulate
+from scipy import stats
 
 
 def gamma_scale(X):
     return 1 / (X.shape[1] * X.var())
+
 
 class SVM:
     def __init__(self, C=1, gamma=None):
@@ -94,14 +96,67 @@ for fold_id, (train, test) in enumerate(rskf.split(X, y)):
 
 mean_scores = np.mean(acc_scores, axis=1)
 std_scores = np.std(acc_scores, axis=1)
-f1_scores = np.mean(f1_scores, axis=1)
+mean_f1_scores = np.mean(f1_scores, axis=1)
+
+np.save('accuracy_results.npy', acc_scores)
+np.save('f1scores_results.npy', f1_scores)
+
+metrics = {
+    "ACCURACY": acc_scores,
+    "F1_SCORE": f1_scores
+}
+
+# Testy statystyczne
+for metric_id, (metric_name, metric) in enumerate(metrics.items()):
+
+    means_vector = np.mean(metric, axis=1)
+
+    t_stats = np.zeros((len(clfs), len(clfs)))
+    p = np.zeros(t_stats.shape)
+    p_bools = np.zeros(t_stats.shape, dtype=bool)
+    p_alpha = np.zeros(p_bools.shape, dtype=bool)
+    s_domination = np.zeros(p_bools.shape, dtype=bool)
+
+    for clfs_y in range(len(clfs)):
+        for clfs_x in range(len(clfs)):
+            t_stats[clfs_y, clfs_x], p[clfs_y, clfs_x] = stats.ttest_rel(metric[clfs_y, :], metric[clfs_x, :])
+            if means_vector[clfs_y] > means_vector[clfs_x]:
+                p_bools[clfs_y, clfs_x] = True
+            if p[clfs_y, clfs_x] < .05:
+                p_alpha[clfs_y, clfs_x] = True
+
+    s_domination = p_bools * p_alpha
+
+    print("\nt_stats:")
+    print(t_stats)
+    print("-----------------------")
+    print("\np_values:")
+    print(p)
+    print("-----------------------")
+    print("\np_bools:")
+    print(p_bools)
+    print("-----------------------")
+    print("\np_alpha:")
+    print(p_alpha)
+    print("-----------------------")
+    print("\ns_domination:")
+    print(s_domination)
+    print("-----------------------")
+
+    print(f"\nWyniki testu t-studenta dla metryki {metric_name}:\n")
+
+    for i in range(means_vector.shape[0]):
+        for j in range(means_vector.shape[0]):
+            if s_domination[i][j]:
+                print(list(clfs.keys())[i], "with: %.3f" %means_vector[i], "better than", list(clfs.keys())[j], "with: %.3f" %means_vector[j])
+    print()
 
 output_table = [["Classificator", "Mean accuracy", "Standard Deviation", "Mean F1 score"],
-                ["SVM (scratch)", mean_scores[0], std_scores[0], f1_scores[0]],
-                ["SVM (rbf sklearn)", mean_scores[1], std_scores[1], f1_scores[1]],
-                ["SVM (linear sklearn)", mean_scores[2], std_scores[2], f1_scores[2]],
-                ["SVM (sigmoid sklearn)", mean_scores[3], std_scores[3], f1_scores[3]],
-                ["Logistic Regression", mean_scores[4], std_scores[4], f1_scores[4]]
+                ["SVM (scratch)", mean_scores[0], std_scores[0], mean_f1_scores[0]],
+                ["SVM (rbf sklearn)", mean_scores[1], std_scores[1], mean_f1_scores[1]],
+                ["SVM (linear sklearn)", mean_scores[2], std_scores[2], mean_f1_scores[2]],
+                ["SVM (sigmoid sklearn)", mean_scores[3], std_scores[3], mean_f1_scores[3]],
+                ["Logistic Regression", mean_scores[4], std_scores[4], mean_f1_scores[4]]
                 ]
 
 print(tabulate(output_table, headers="firstrow", floatfmt=".3f"))
@@ -111,4 +166,3 @@ with open('Wyniki/Real_table_gamma_scale.txt', 'w') as f:
 
 plt.savefig("Wyniki/Real_table_gamma_scale.png")
 plt.show()
-
